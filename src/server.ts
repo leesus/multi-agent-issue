@@ -1,4 +1,9 @@
-import { routeAgentRequest, type Schedule } from "agents";
+import {
+  Agent,
+  getAgentByName,
+  routeAgentRequest,
+  type Schedule,
+} from "agents";
 
 import { unstable_getSchedulePrompt } from "agents/schedule";
 
@@ -45,7 +50,15 @@ export class Chat extends AIChatAgent<Env> {
             messages: this.messages,
             dataStream,
             tools,
-            executions,
+            executions: {
+              getWeatherInformation: async ({ city }) => {
+                const subAgent = await getAgentByName(
+                  this.env.SubAgent,
+                  crypto.randomUUID()
+                );
+                return subAgent.getWeather(city);
+              },
+            },
           });
 
           // Stream the AI response using GPT-4
@@ -84,6 +97,27 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
         createdAt: new Date(),
       },
     ]);
+  }
+}
+
+export class SubAgent extends Agent<Env> {
+  weather: { getTemperature: () => string } | undefined;
+
+  onStart() {
+    console.log("Calling onStart");
+    this.weather = {
+      getTemperature: () => `${Math.floor(Math.random() * 100)}°F`,
+    };
+  }
+
+  getWeather(city: string) {
+    console.log(`Getting temperature for ${city}`);
+    try {
+      return this.weather!.getTemperature();
+    } catch (error) {
+      console.error("Error while getting temperature:", error);
+      return "Error: Failed to get temperature";
+    }
   }
 }
 
